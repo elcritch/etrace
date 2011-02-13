@@ -86,7 +86,7 @@ class Printer:
         self.level = self.level - 1
 
     def print_func(self, name):
-        print ")\n   " + self.level*"\t" + "("+ name, 
+        print "\n   " + self.level*"|\t" + name, 
         
     def print_totals(self):
         print "(total: %d times)" % (self.count+1), 
