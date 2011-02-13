@@ -77,22 +77,24 @@
 #define STR(_x)          #_x
 #define DEF(_x)          _x
 #define GET(_x,_y)       _x(_y)
+#define TRACE __GNU_PTRACE_FILE__
 /*---------------------------------------------------------------------------
   							Function codes
  ---------------------------------------------------------------------------*/
 
 /** Initial trace open */
-
+static FILE *__GNU_PTRACE_FILE__;
+ 
 
 /** Final trace close */
 static void
 __NON_INSTRUMENT_FUNCTION__
 gnu_ptrace_close(void)
 {
-	FILE *trace;
-	if ((trace=fopen(PTRACE_PIPENAME, "a"))==NULL) return ;
-	fprintf(trace, END_TRACE " %ld\n", (long)getpid());
-	fclose(trace);
+	fprintf(TRACE, END_TRACE " %ld\n", (long)getpid());
+
+	if (TRACE != NULL)
+	    fclose(TRACE);
 	return ;
 }
 
@@ -102,17 +104,29 @@ __NON_INSTRUMENT_FUNCTION__
 gnu_ptrace_init(void)
 {
 	struct stat sta;
-
+    __GNU_PTRACE_FILE__ = NULL;
+    
 	/* See if a trace file exists */
 	if (stat(PTRACE_PIPENAME, &sta) != 0) 
 	{
 		/* No trace file: do not trace at all */
 		return 0;
 	}
+	else 
+	{
+		/* trace file: open up trace file */
+    	if ((TRACE = fopen(PTRACE_PIPENAME, "a")) == NULL)
+    	{
+            char *msg = strerror(errno);
+            perror(msg);
+            printf("[gnu_ptrace error]\n");
+    		return 0;
+    	}
 	
-	/* Tracing requested: a trace file was found */
-	atexit(gnu_ptrace_close);
-	return 1;
+    	/* Tracing requested: a trace file was found */
+    	atexit(gnu_ptrace_close);
+    	return 1;
+    }
 }
 
 /** Function called by every function event */
@@ -122,9 +136,6 @@ gnu_ptrace(char * what, void * p)
 {
 	static int first=1;
 	static int active=1;
-	FILE *trace;
-
-    // printf("[gnu_ptrace]\n");
 
 	if (active==0)
 		return;
@@ -132,18 +143,10 @@ gnu_ptrace(char * what, void * p)
 	if (first)
 		active = gnu_ptrace_init();
 
-	if ((trace = fopen(PTRACE_PIPENAME, "a")) == NULL) 
-	{
-        char *msg = strerror(errno);
-        perror(msg);
-        // printf("[gnu_ptrace error]\n");
-		return;
-	}
-	
 	if (first) 
 	{
 #ifdef PTRACE_REFERENCE_FUNCTION
-	  fprintf(trace,"%s %s %p\n",
+	  fprintf(TRACE,"%s %s %p\n",
               REFERENCE_OFFSET,
               GET(STR,PTRACE_REFERENCE_FUNCTION),
 		      (void *)GET(DEF,PTRACE_REFERENCE_FUNCTION));
@@ -151,9 +154,8 @@ gnu_ptrace(char * what, void * p)
 	  first = 0;
 	};
 	
-	fprintf(trace, "%s %p\n", what, p);
-	fclose(trace);
-
+	fprintf(TRACE, "%s %p\n", what, p);
+    fflush(TRACE);
 	return;
 }
 
