@@ -123,6 +123,13 @@ gnu_ptrace_init(void)
     		return 0;
     	}
 	
+        #ifdef PTRACE_REFERENCE_FUNCTION
+        fprintf(TRACE,"%s %s %p\n",
+                  REFERENCE_OFFSET,
+                  GET(STR,PTRACE_REFERENCE_FUNCTION),
+                  (void *)GET(DEF,PTRACE_REFERENCE_FUNCTION));
+        #endif
+        
     	/* Tracing requested: a trace file was found */
     	atexit(gnu_ptrace_close);
     	return 1;
@@ -137,22 +144,17 @@ gnu_ptrace(char * what, void * p)
 	static int first=1;
 	static int active=1;
 
-	if (active==0)
+	if (active == 0)
 		return;
 	
 	if (first)
-		active = gnu_ptrace_init();
-
-	if (first) 
 	{
-#ifdef PTRACE_REFERENCE_FUNCTION
-	  fprintf(TRACE,"%s %s %p\n",
-              REFERENCE_OFFSET,
-              GET(STR,PTRACE_REFERENCE_FUNCTION),
-		      (void *)GET(DEF,PTRACE_REFERENCE_FUNCTION));
-#endif
-	  first = 0;
-	};
+		active = gnu_ptrace_init();
+        first = 0;
+        
+        if (active == 0)
+            return;
+	}
 	
 	fprintf(TRACE, "%s %p\n", what, p);
     fflush(TRACE);
