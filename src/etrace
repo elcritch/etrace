@@ -22,7 +22,7 @@ def hex_conv(s):
 
 # Load symbols
 def load_symbols(prog):
-    pattern = re.compile("\w+:\s*([0-9a-fA-F]+)? (\w) (\w+)")
+    pattern = re.compile("[^:]+:\s*([0-9a-fA-F]+)? (\w) (\w+)")
     f = os.popen("nm -o "+prog)
     sym = {}
     for line in f.readlines():
