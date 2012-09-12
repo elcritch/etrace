@@ -95,7 +95,7 @@ sub processCallInfo {
 	my $offsetAddress = hex $2;
 
 	my %offsetTable = reverse %SYMBOLTABLE;
-	my $baseAddress = $offsetTable{$offsetSymbol} - $offsetAddress;
+	$baseAddress = $offsetTable{$offsetSymbol} - $offsetAddress;
 	$offsetLine = <CALL_DATA>;
     } else {
 	# This is static
