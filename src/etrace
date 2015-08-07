@@ -22,7 +22,7 @@ def hex_conv(s):
 
 # Load symbols
 def load_symbols(prog):
-    pattern = re.compile("\w+:\s*([0-9a-fA-F]+)? (\w) (\w+)")
+    pattern = re.compile("[^:]+:\s*([0-9a-fA-F]+)? (\w) (\w+)")
     f = os.popen("nm -o "+prog)
     sym = {}
     for line in f.readlines():
@@ -31,7 +31,7 @@ def load_symbols(prog):
             continue
         addr, kind, name = match.groups()
         addr = hex_conv(addr)
-        if name[0] == '_': 
+        if name[0] == '_' and not name.startswith("__cyg_profile_func_"): 
             name = name[1:]
         sym[addr]=name
     
@@ -126,4 +126,3 @@ if __name__=="__main__":
     
     init_trace()
     trace(sys.argv[1])
-

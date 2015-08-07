@@ -4,29 +4,33 @@
 # Author: Victor Chudnovsky
 # Date: March 8, 2004
 
-$NM  = 'nm ';     # unix nm utility to get symbol names and addresses
+use strict;
+use warnings "all";
+
+our $NM  = 'nm ';     # unix nm utility to get symbol names and addresses
 
 # Output format
-$TAB1 = "|   ";            # indentation: function still on the stack   
-$TAB2 = "\\-- ";           # indentation: function just placed on the stack
-$UNDEFINED_SYMBOL = "???"; # when an offset cannot be mapped to a symbol
+our $TAB1 = "|   ";            # indentation: function still on the stack   
+our $TAB2 = "\\-- ";           # indentation: function just placed on the stack
+our $UNDEFINED_SYMBOL = "???"; # when an offset cannot be mapped to a symbol
 
 # Input format
-$FIFO_NAME = "TRACE";             # default FIFO name
-$REFERENCE_OFFSET = "REFERENCE:"; # marks a known symbol/object pair for dynamic libraries
-$FUNCTION_ENTRY = "enter";        # marks entry into a function
-$FUNCTION_EXIT  = "exit";         # marks exit from function
-$END_TRACE      = "EXIT";         # end of input
-$HEX_NUMBER = '0?x?[0-9a-fA-F]+'; # hex number
-$SYMBOL_NAME = '[\w@.]+';         # valid identifier characters
+our $FIFO_NAME = "TRACE";             # default FIFO name
+our $REFERENCE_OFFSET = "REFERENCE:"; # marks a known symbol/object pair for dynamic libraries
+our $FUNCTION_ENTRY = "enter";        # marks entry into a function
+our $FUNCTION_EXIT  = "exit";         # marks exit from function
+our $END_TRACE      = "EXIT";         # end of input
+our $HEX_NUMBER = '0?x?[0-9a-fA-F]+'; # hex number
+our $SYMBOL_NAME = '[\w@.]+';         # valid identifier characters
 
 # Global identifiers
-# %SYMBOLTABLE : a hash array from relative offsets to symbol names
-# $IS_FIFO :     are we reading from a FIFO or a file?
-# CALL_DATA :    file handle to input file/FIFO
+our %SYMBOLTABLE; # : a hash array from relative offsets to symbol names
+our $IS_FIFO; # :     are we reading from a FIFO or a file?
+#our CALL_DATA; # :    file handle to input file/FIFO
 
 sub readObjects {
-    $objectFileName = shift;
+    my $objectFileName = shift;
+    my $handleName;
     if (-x $objectFileName) {
 	# Object code: extract symbol names via a pipe before parsing
 	$handleName = $NM.$objectFileName.'|';
@@ -34,25 +38,27 @@ sub readObjects {
 	# A symbol table: simply parse the symbol names
 	$handleName = '<'.$objectFileName;
     };
-    open f, $handleName or die "$0: cannot open $objectFileName";
-    while ($line = <f>) {
+    open obj_file, $handleName or die "$0: cannot open $objectFileName";
+    my $line;
+    while ($line = <obj_file>) {
 	$line =~  m/^($HEX_NUMBER)\s+.*\s+($SYMBOL_NAME)$/;
-	$hexLocation = $1;
-	$symbolName = $2;
-	$location = hex $hexLocation;
+	my $hexLocation = $1;
+	my $symbolName = $2;
+	my $location = hex $hexLocation;
 	$SYMBOLTABLE{$location} = $2
 	}
-    close f;
+    close obj_file;
 }
 
 sub writeSymbolTable {
+    my $location, my $name;
     while ( ($location,$name) = each %SYMBOLTABLE) {
 	print "[$location] => $name\n";
     }
 }; 
 
 sub establishInput {
-    $inputName = shift;
+    my $inputName = shift;
     if (!defined($inputName)) {
 	$inputName = $FIFO_NAME;
     };
@@ -74,20 +80,21 @@ sub establishInput {
 
 sub deleteFifo {
     if ($IS_FIFO) {
-	$inputName = shift;
+	my $inputName = shift;
 	unlink $inputName or die "$0: could not unlink $inputName\n";
     };
 };
 
 
 sub processCallInfo {
-    $offsetLine = <CALL_DATA>;
+    my $offsetLine = <CALL_DATA>;
+    my $baseAddress;
     if ($offsetLine =~ m/^$REFERENCE_OFFSET\s+($SYMBOL_NAME)\s+($HEX_NUMBER)$/) {
 	# This is a dynamic library; need to calculate the load offset
-	$offsetSymbol  = $1;
-	$offsetAddress = hex $2;
+	my $offsetSymbol  = $1;
+	my $offsetAddress = hex $2;
 
-	%offsetTable = reverse %SYMBOLTABLE;
+	my %offsetTable = reverse %SYMBOLTABLE;
 	$baseAddress = $offsetTable{$offsetSymbol} - $offsetAddress;
 	$offsetLine = <CALL_DATA>;
     } else {
@@ -95,13 +102,14 @@ sub processCallInfo {
 	$baseAddress = 0;
     }
     
+    my $level = 0;
     while (!($offsetLine =~/^$END_TRACE/)) {
 	if ($offsetLine =~ m/^($FUNCTION_ENTRY|$FUNCTION_EXIT)\s+($HEX_NUMBER)$/) {
-	    $action = $1;
-	    $offset = hex $2;
-	    $address = $offset + $baseaddress;
+	    my $action = $1;
+	    my $offset = hex $2;
+	    my $address = $offset + $baseAddress;
 	    if ($1=~m/$FUNCTION_ENTRY/) {
-		$thisSymbol = $SYMBOLTABLE{$offset+$baseAddress};
+		my $thisSymbol = $SYMBOLTABLE{$offset+$baseAddress};
 		if (! defined($thisSymbol)) {
 		    $thisSymbol = $UNDEFINED_SYMBOL;
 		};
@@ -129,8 +137,8 @@ if (@ARGV==0) {
 	"       TRACE is either the etrace output file or of a FIFO to connect to etrace.\n";
 };
 
-$objectFile = shift @ARGV;
-$inputFile = shift @ARGV;
+my $objectFile = shift @ARGV;
+my $inputFile = shift @ARGV;
 
 readObjects $objectFile;
 
