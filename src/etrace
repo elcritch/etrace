@@ -27,18 +27,18 @@ def load_symbols(prog):
     sym = {}
     for line in f.readlines():
         match = pattern.match(line)
-        if not match or match.groups()[0] == None: 
+        if not match or match.groups()[0] == None:
             continue
         addr, kind, name = match.groups()
         addr = hex_conv(addr)
-        if name[0] == '_' and not name.startswith("__cyg_profile_func_"): 
+        if name[0] == '_' and not name.startswith("__cyg_profile_func_"):
             name = name[1:]
         sym[addr]=name
-    
+
     if "__cyg_profile_func_enter" not in sym.values():
-        print "Error: "+prog+" doesn't appear to be instrumented. "
+        print("Error: "+prog+" doesn't appear to be instrumented. ")
         end_trace()
-    
+
     f.close()
     return sym
 
@@ -48,13 +48,13 @@ def trace(prog):
     sym = load_symbols(prog)
     trace_file = os.path.abspath("TRACE")
     tr = open(trace_file, 'r')
-    
+
     printer = Printer()
-    
+
     while True:
         line = tr.readline()
         if line:
-            s = string.split(line)
+            s = line.split()
 
             if s[0]=="EXIT":
                 end_trace()
@@ -65,46 +65,46 @@ def trace(prog):
                 name = sym[s1]
             else:
                 name = "??"
-            
+
             printer.printFunction(s[0], name)
     tr.close()
 
 class Printer:
-    
+
     def __init__(self):
         self.level = 0
         self.prevname = ""
         self.count = 0
-    
+
     def incr_count(self):
         self.count = self.count + 1
-        
+
     def incr_level(self):
         self.level = self.level + 1
-        
+
     def decr_level(self):
         self.level = self.level - 1
 
     def print_func(self, name):
-        print "\n   " + self.level*"|\t" + "\--" + name, 
-        
+        print ("\n   " + self.level*"|\t" + "\--" + name, )
+
     def print_totals(self):
-        print "(total: %d times)" % (self.count+1), 
-        
+        print ("(total: %d times)" % (self.count+1), )
+
     def do_func(self, name):
         if self.prevname == name:
             # was the counter counting?
             if self.count == 0:
-                self.print_func(name)                
+                self.print_func(name)
             self.incr_count()
         else:
             # New name received. Was the counter counting?
             if self.count > 0:
                 self.print_totals()
                 self.count=0
-            
+
             self.print_func(name)
-        
+
     def printFunction(self, status, name):
         if status == "enter":
             self.do_func(name)
@@ -121,8 +121,8 @@ class Printer:
 # Main
 if __name__=="__main__":
     if len(sys.argv)<2:
-        print "Usage: analysis <binary name>"
+        print("Usage: analysis <binary name>")
         sys.exit(1)
-    
+
     init_trace()
     trace(sys.argv[1])
