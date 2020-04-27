@@ -85,6 +85,8 @@
 /** Initial trace open */
 static FILE *__GNU_PTRACE_FILE__;
  
+/** Code segment */
+static void *segment;
 
 /** Final trace close */
 static void
@@ -105,6 +107,7 @@ gnu_ptrace_init(void)
 {
 	struct stat sta;
 	__GNU_PTRACE_FILE__ = NULL;
+	FILE *f;
 
 	/* See if a trace file exists */
 	if (stat(PTRACE_PIPENAME, &sta) != 0) 
@@ -132,6 +135,11 @@ gnu_ptrace_init(void)
 
 		/* Tracing requested: a trace file was found */
 		atexit(gnu_ptrace_close);
+
+		f = fopen("/proc/self/maps", "r");
+		fscanf(f, "%x", &segment);
+		fclose(f);
+
 		return 1;
 	}
 }
@@ -146,7 +154,7 @@ gnu_ptrace(char * what, void * p)
 
 	if (active == 0)
 		return;
-	
+
 	if (first)
 	{
 		active = gnu_ptrace_init();
@@ -155,8 +163,8 @@ gnu_ptrace(char * what, void * p)
 		if (active == 0)
 			return;
 	}
-	
-	fprintf(TRACE, "%s %p\n", what, p);
+
+	fprintf(TRACE, "%s %p\n", what, p - segment);
 	fflush(TRACE);
 	return;
 }
