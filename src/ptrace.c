@@ -169,6 +169,10 @@ gnu_ptrace(char * what, void * p)
 	return;
 }
 
+#if __cplusplus
+extern "C" {
+#endif
+
 /** According to gcc documentation: called upon function entry */
 void
 __NON_INSTRUMENT_FUNCTION__
@@ -186,6 +190,10 @@ __cyg_profile_func_exit(void *this_fn, void *call_site)
 	gnu_ptrace(FUNCTION_EXIT, this_fn);
 	(void)call_site;
 }
+
+#if __cplusplus
+}
+#endif
 
 #endif
 /* vim: set ts=4 et sw=4 tw=75 */
