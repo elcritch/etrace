@@ -147,7 +147,7 @@ gnu_ptrace_init(void)
 /** Function called by every function event */
 void
 __NON_INSTRUMENT_FUNCTION__
-gnu_ptrace(char * what, void * p)
+gnu_ptrace(const char * what, void * p)
 {
 	static int first=1;
 	static int active=1;
