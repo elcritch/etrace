@@ -84,9 +84,9 @@
 
 /** Initial trace open */
 static FILE *__GNU_PTRACE_FILE__;
- 
-/** Code segment */
-static void *segment;
+
+/** Code segment offset */
+static size_t offset;
 
 /** Final trace close */
 static void
@@ -137,7 +137,7 @@ gnu_ptrace_init(void)
 		atexit(gnu_ptrace_close);
 
 		f = fopen("/proc/self/maps", "r");
-		fscanf(f, "%x", &segment);
+		fscanf(f, "%zx", &offset);
 		fclose(f);
 
 		return 1;
@@ -164,7 +164,7 @@ gnu_ptrace(char * what, void * p)
 			return;
 	}
 
-	fprintf(TRACE, "%s %p\n", what, p - segment);
+	fprintf(TRACE, "%s %p\n", what, (unsigned char *)p - offset);
 	fflush(TRACE);
 	return;
 }
