@@ -40,7 +40,7 @@
 #if (__GNUC__>2) || ((__GNUC__ == 2) && (__GNUC_MINOR__ > 95))
 
 /*---------------------------------------------------------------------------
-   								Includes
+								Includes
  ---------------------------------------------------------------------------*/
 
 #include <stdio.h>
@@ -52,7 +52,7 @@
 #include <sys/errno.h>
 
 /*---------------------------------------------------------------------------
-   							    User Macros
+							    User Macros
  ---------------------------------------------------------------------------*/
 #define PTRACE_PIPENAME	 "TRACE"
 
@@ -65,7 +65,7 @@
 
 
 /*---------------------------------------------------------------------------
-   								Defines
+								Defines
  ---------------------------------------------------------------------------*/
 
 #define REFERENCE_OFFSET "REFERENCE:"
@@ -79,12 +79,14 @@
 #define GET(_x,_y)       _x(_y)
 #define TRACE __GNU_PTRACE_FILE__
 /*---------------------------------------------------------------------------
-  							Function codes
+							Function codes
  ---------------------------------------------------------------------------*/
 
 /** Initial trace open */
 static FILE *__GNU_PTRACE_FILE__;
  
+/** Code segment */
+static void *segment;
 
 /** Final trace close */
 static void
@@ -94,7 +96,7 @@ gnu_ptrace_close(void)
 	fprintf(TRACE, END_TRACE " %ld\n", (long)getpid());
 
 	if (TRACE != NULL)
-	    fclose(TRACE);
+		fclose(TRACE);
 	return ;
 }
 
@@ -104,36 +106,42 @@ __NON_INSTRUMENT_FUNCTION__
 gnu_ptrace_init(void)
 {
 	struct stat sta;
-    __GNU_PTRACE_FILE__ = NULL;
-    
+	__GNU_PTRACE_FILE__ = NULL;
+	FILE *f;
+
 	/* See if a trace file exists */
 	if (stat(PTRACE_PIPENAME, &sta) != 0) 
 	{
-		/* No trace file: do not trace at all */
+			/* No trace file: do not trace at all */
 		return 0;
 	}
-	else 
+	else
 	{
-		/* trace file: open up trace file */
-    	if ((TRACE = fopen(PTRACE_PIPENAME, "a")) == NULL)
-    	{
-            char *msg = strerror(errno);
-            perror(msg);
-            printf("[gnu_ptrace error]\n");
-    		return 0;
-    	}
-	
-        #ifdef PTRACE_REFERENCE_FUNCTION
-        fprintf(TRACE,"%s %s %p\n",
-                  REFERENCE_OFFSET,
-                  GET(STR,PTRACE_REFERENCE_FUNCTION),
-                  (void *)GET(DEF,PTRACE_REFERENCE_FUNCTION));
-        #endif
-        
-    	/* Tracing requested: a trace file was found */
-    	atexit(gnu_ptrace_close);
-    	return 1;
-    }
+			/* trace file: open up trace file */
+		if ((TRACE = fopen(PTRACE_PIPENAME, "a")) == NULL)
+		{
+			char *msg = strerror(errno);
+			perror(msg);
+			printf("[gnu_ptrace error]\n");
+			return 0;
+		}
+
+		#ifdef PTRACE_REFERENCE_FUNCTION
+		fprintf(TRACE,"%s %s %p\n",
+			REFERENCE_OFFSET,
+			GET(STR,PTRACE_REFERENCE_FUNCTION),
+			(void *)GET(DEF,PTRACE_REFERENCE_FUNCTION));
+		#endif
+
+		/* Tracing requested: a trace file was found */
+		atexit(gnu_ptrace_close);
+
+		f = fopen("/proc/self/maps", "r");
+		fscanf(f, "%x", &segment);
+		fclose(f);
+
+		return 1;
+	}
 }
 
 /** Function called by every function event */
@@ -146,18 +154,18 @@ gnu_ptrace(char * what, void * p)
 
 	if (active == 0)
 		return;
-	
+
 	if (first)
 	{
 		active = gnu_ptrace_init();
-        first = 0;
-        
-        if (active == 0)
-            return;
+		first = 0;
+
+		if (active == 0)
+			return;
 	}
-	
-	fprintf(TRACE, "%s %p\n", what, p);
-    fflush(TRACE);
+
+	fprintf(TRACE, "%s %p\n", what, p - segment);
+	fflush(TRACE);
 	return;
 }
 
