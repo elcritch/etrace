@@ -84,9 +84,9 @@
 
 /** Initial trace open */
 static FILE *__GNU_PTRACE_FILE__;
- 
-/** Code segment */
-static void *segment;
+
+/** Code segment offset */
+static size_t offset;
 
 /** Final trace close */
 static void
@@ -137,7 +137,7 @@ gnu_ptrace_init(void)
 		atexit(gnu_ptrace_close);
 
 		f = fopen("/proc/self/maps", "r");
-		fscanf(f, "%x", &segment);
+		fscanf(f, "%zx", &offset);
 		fclose(f);
 
 		return 1;
@@ -147,7 +147,7 @@ gnu_ptrace_init(void)
 /** Function called by every function event */
 void
 __NON_INSTRUMENT_FUNCTION__
-gnu_ptrace(char * what, void * p)
+gnu_ptrace(const char * what, void * p)
 {
 	static int first=1;
 	static int active=1;
@@ -164,10 +164,14 @@ gnu_ptrace(char * what, void * p)
 			return;
 	}
 
-	fprintf(TRACE, "%s %p\n", what, p - segment);
+	fprintf(TRACE, "%s %p\n", what, (unsigned char *)p - offset);
 	fflush(TRACE);
 	return;
 }
+
+#if __cplusplus
+extern "C" {
+#endif
 
 /** According to gcc documentation: called upon function entry */
 void
@@ -186,6 +190,10 @@ __cyg_profile_func_exit(void *this_fn, void *call_site)
 	gnu_ptrace(FUNCTION_EXIT, this_fn);
 	(void)call_site;
 }
+
+#if __cplusplus
+}
+#endif
 
 #endif
 /* vim: set ts=4 et sw=4 tw=75 */
